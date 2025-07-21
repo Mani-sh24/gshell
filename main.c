@@ -1,29 +1,37 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-char *get_input();
+#include <unistd.h>
+#include <sys/wait.h>
 char **parse_tokens(char *input, int *count);
+char *get_input();
+int ghs_exec(char **args);
+int create_process(char **args);
+int gsh_cd(char **args);
+int gsh_exit(char **args);
 int main(int argc, char *argv[])
 {
   int count;
   char *input;
+  char **args;
+  int status;
   do
   {
     printf("> ");
     input = get_input();
-    if (strcmp(input, "exit") == 0)
-    {
-      break;
-    }
-    char **str = parse_tokens(input, &count);
-    printf("%s:command not found\n", input);
+    args = parse_tokens(input, &count);
+    status = ghs_exec(args);
+    // printf("%s:command not found\n", input);
+
     for (int i = 0; i < count; i++)
     {
-      free(str[i]);
+      free(args[i]);
     }
-    free(str);
+
     free(input);
-  } while (1);
+    free(args);
+  } while (status);
 
   return 0;
 }
@@ -70,7 +78,7 @@ char *get_input()
 
 char **parse_tokens(char *input, int *count)
 {
-  int cap = 256, i = 0;
+  int cap = 1024, i = 0;
   char *str = strdup(input);
   char **tokens = malloc(sizeof(char *) * cap);
   char *token;
@@ -83,8 +91,86 @@ char **parse_tokens(char *input, int *count)
       cap *= 2;
       tokens = realloc(tokens, cap * sizeof(char *));
     }
-    tokens[i++] = token;
+    tokens[i++] = strdup(token);
   }
+  tokens[i] = NULL;
   *count = i;
+  free(str);
   return tokens;
+}
+
+int create_process(char **args)
+{
+  pid_t pid, wpid;
+  int status;
+  pid = fork();
+  if (pid == 0)
+  {
+    // child
+    if (execvp(args[0], args) == -1)
+    {
+      perror("gsh");
+    }
+    exit(EXIT_FAILURE);
+  }
+  else if (pid < 0)
+  {
+    perror("gsh");
+  }
+  else
+  {
+    do
+    {
+      wpid = waitpid(pid, &status, WUNTRACED);
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+  }
+  return 1;
+}
+int gsh_cd(char **args)
+{
+  if (args[1] == NULL)
+  {
+    fprintf(stderr, "gsh: expected argument to \"cd\"\n");
+  }
+  else
+  {
+    if (chdir(args[1]) != 0)
+    {
+      perror("gsh");
+    }
+  }
+  return 1;
+}
+int gsh_exit(char **args)
+{
+  return 0;
+}
+
+char *builtins[] = {
+    "cd", "exit"};
+
+int (*builtin_func[])(char **) = {
+    &gsh_cd,
+    &gsh_exit};
+
+int gsh_num_builtins()
+{
+  return sizeof(builtins) / sizeof(char *);
+}
+
+int ghs_exec(char **args)
+{
+  if (args[0] == NULL)
+  {
+    return 1;
+  }
+  int i = 0;
+  for (i = 0; i < gsh_num_builtins(); i++)
+  {
+    if (strcmp(args[0], builtins[i]) == 0)
+    {
+      return (*builtin_func[i])(args);
+    }
+  }
+  return create_process(args);
 }

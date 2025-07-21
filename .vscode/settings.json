@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.html": "html",
+        "*.svelte": "html",
+        "*.vue": "html",
+        "stdio.h": "c"
+    }
+}
