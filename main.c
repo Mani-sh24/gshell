@@ -158,6 +158,7 @@ int gsh_pwd(char **args)
 char *builtins[] = {
     "cd", "exit", "pwd"};
 // builtins and builtin_func should be in same order!
+// otherwise the program may misbehave!
 int (*builtin_func[])(char **) = {
     &gsh_cd,
     &gsh_exit,
