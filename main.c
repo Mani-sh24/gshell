@@ -10,6 +10,7 @@ int ghs_exec(char **args);
 int create_process(char **args);
 int gsh_cd(char **args);
 int gsh_exit(char **args);
+int gsh_pwd(char **args);
 int main(int argc, char *argv[])
 {
   int count;
@@ -22,7 +23,10 @@ int main(int argc, char *argv[])
     input = get_input();
     args = parse_tokens(input, &count);
     status = ghs_exec(args);
-    // printf("%s:command not found\n", input);
+    if (status == -1)
+    {
+      printf("%s:command not found\n", input);
+    }
 
     for (int i = 0; i < count; i++)
     {
@@ -109,7 +113,7 @@ int create_process(char **args)
     // child
     if (execvp(args[0], args) == -1)
     {
-      perror("gsh");
+      return -1;
     }
     exit(EXIT_FAILURE);
   }
@@ -145,16 +149,23 @@ int gsh_exit(char **args)
 {
   return 0;
 }
+int gsh_pwd(char **args)
+{
+  printf("%s", get_current_dir_name());
+  return 1;
+}
 
 char *builtins[] = {
-    "cd", "exit"};
-
+    "cd", "exit", "pwd"};
+// builtins and builtin_func should be in same order!
 int (*builtin_func[])(char **) = {
     &gsh_cd,
-    &gsh_exit};
+    &gsh_exit,
+    &gsh_pwd};
 
 int gsh_num_builtins()
 {
+
   return sizeof(builtins) / sizeof(char *);
 }
 
